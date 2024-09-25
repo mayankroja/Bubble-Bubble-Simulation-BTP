@@ -1,0 +1,152 @@
+# geometry
+geometry.prob_lo     =  0.0  0.0  0.0 
+geometry.prob_hi     =  100.0  50.0  0.125
+geometry.is_periodic =  0    0    0
+
+amr.n_cell          = 64 32 8
+amr.max_level       = 8       # maximum level number allowed -- 
+                              # number of levels = max_level + 1
+
+amr.ref_ratio       = 2 2 2 2 # refinement ratio between levels
+
+amr.blocking_factor_x = 8
+amr.blocking_factor_y = 8
+amr.blocking_factor_z = 8
+
+amr.max_grid_size   = 1024
+
+amr.n_error_buf = 1
+
+regrid_int = 4
+
+# vorticity based tagging
+tag_vort = 0
+vorterr = 10.0 15.0 20.0
+
+# tag the lower corner regions where secondary vortices are formed
+tag_region = 0
+tag_region_name = LB
+#tag_region_name = LB RR
+LB.lo = -6.0 0.0
+LB.hi = 6.0 0.2
+#LB.lo = -2.0 4.0
+#LB.hi = -1.0 5.0
+##RB.lo = -1.0 0.0
+##RB.hi = 1.0 2.0
+RR.lo = -5.0 0.0
+RR.hi = -4.0 1.0
+
+
+Nghost = 5
+LAYERS = 5
+
+chk_int = 50
+Restart = false
+chk_int_read = 2150 #if Restart = true, mention the timestep for restart
+
+StopAtSteady = 0
+SteadyTol = 1e-5
+RKOrder = 2
+Axisymmetric = true
+divergence_free_interpolation = true
+Use_Algoim = false
+Temperature_field = true
+Phase_field = false
+DamageModel = false
+advect_ref_cond = false
+FinalTime = 50.0
+MaxIter = 10000
+PlotInt = 50
+Tecplot = false
+ReinitInt = 1
+SIGMA = 0.01
+dt = 5e-5
+CFL = 0.5
+Mu = 0.0001
+
+LS_Reinit.maxIter = 20
+LS_reg_iter = 200
+LS_Reinit.use_FMM = false
+Reinit_Method = 2
+
+lobc_u = Dirichlet Neumann
+hibc_u = Neumann Neumann
+
+lobc_v = Dirichlet Neumann
+hibc_v = Neumann Neumann
+
+lobc_p = Neumann Neumann
+hibc_p = Dirichlet Dirichlet
+
+lobc_T = Neumann Neumann
+hibc_T = Neumann Neumann
+
+lobc_Phi = Neumann Neumann
+hibc_Phi = Neumann Neumann
+
+lobc_X = Neumann Neumann
+hibc_X = Neumann Neumann
+
+lobc_Y = Neumann Dirichlet
+hibc_Y = Neumann Neumann
+
+lobc_F11 = Dirichlet Neumann 
+hibc_F11 = Neumann Neumann
+
+lobc_F12 = Dirichlet Dirichlet
+hibc_F12 = Neumann Neumann
+
+lobc_F21 = Dirichlet Dirichlet
+hibc_F21 = Neumann Neumann 
+
+lobc_F22 = Dirichlet Neumann
+hibc_F22 = Neumann Neumann
+
+lobc_F33 = Dirichlet Neumann
+hibc_F33 = Neumann Neumann
+
+lobc_ep = Neumann Neumann
+hibc_ep = Neumann Neumann
+
+lobc_DMG = Neumann Neumann
+hibc_DMG = Neumann Neumann
+
+LinearSolver.abs_tol = 0.0
+LinearSolver.rel_tol = 1e-10
+LinearSolver.max_iter = 200
+LinearSolver.print_system = 0
+LinearSolver.solver_lib = hypre
+hypre.solver = AMG
+#hypre.solver = GMRES
+
+#LinearSolver.solver_lib = petsc
+#petsc.solver = GMRES
+#petsc.solver = BICGS
+#Viscosity
+viscosity.lambda = 1.0
+viscosity.Mu_max = 0.02
+viscosity.Mu_min = 0.02
+viscosity.N = 0.0
+
+viscosity_polymer.lambda = 1.0
+viscosity_polymer.Mu_max = 0.02
+viscosity_polymer.Mu_min = 0.02
+viscosity_polymer.N = 0.0
+
+#Interface info
+N_interfaces = 1
+IF_types = Bubble
+IF_names = bubble
+
+# Cylinder Interface
+bubble.cp = 1.0 0.0
+bubble.radius = 0.5
+bubble.P_interface0 = 20.0
+bubble.is_fluid_in = false
+bubble.p_bc = Dirichlet
+bubble.u_bc = Dirichlet
+bubble.v_bc = Dirichlet
+bubble.T_bc = Dirichlet
+bubble.Phi_bc = Neumann
+bubble.is_advect_ls = true
+

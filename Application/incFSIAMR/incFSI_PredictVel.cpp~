@@ -1,0 +1,384 @@
+#include "incFSI.H"
+
+namespace mycode
+{
+
+void incFSI::ComputeIntermediateVelocity(int lev)
+{
+    /// fill internal ghost values
+     xvel_old[lev].FillBoundary();
+     yvel_old[lev].FillBoundary();
+     Pressure[lev].FillBoundary();
+
+    //! create temp field data
+    
+    amrex::BoxArray xba = amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(0));
+    amrex::BoxArray yba = amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(1));
+    amrex::MultiFab tmp_xvel_old(xba, dmap[lev], 1, Nghost);
+    amrex::MultiFab tmp_yvel_old(yba, dmap[lev], 1, Nghost);
+    amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM> tmp_vel_old = {&tmp_xvel_old, &tmp_yvel_old};
+    amrex::MultiFab tmp_Pressure(grids[lev], dmap[lev], 1, Nghost);
+    {
+        //! fill from old current level and coarse level
+        //! need to pass the current data also
+        amrex::Vector<amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM>> cvel;
+        amrex::Vector<amrex::Array<amrex::MultiFab *, AMREX_SPACEDIM>> fvel;
+        amrex::Vector<amrex::MultiFab *> cP(1);
+        amrex::Vector<amrex::Real> ctime(2);
+        amrex::Vector<amrex::Real> ftime(2);
+
+        amrex::Vector<amrex::MultiFab *> cxvel(1);
+        amrex::Vector<amrex::MultiFab *> cyvel(1);
+
+        if (lev > 0)
+        {
+            ctime[0] = t_old;
+            ctime[1] = t_new;
+
+            cP[0] = &Pressure[lev - 1];
+            cxvel[0] = &xvel_old[lev - 1];
+            cyvel[0] = &yvel_old[lev - 1];
+            cvel.resize(1);
+            cvel[0] = {&xvel_old[lev - 1], &yvel_old[lev - 1]}; // old data
+       
+            ftime[0] = t_old;
+            ftime[1] = t_new;
+
+            fvel.resize(1);
+            fvel[0] = {&xvel_old[lev], &yvel_old[lev]}; // old data
+
+            FillPatch(lev, Time, tmp_xvel_old, {cxvel[0]}, {ctime[0]}, {&xvel_old[lev]}, {ftime[0]}, 0, 1);
+            FillPatch(lev, Time, tmp_yvel_old, {cyvel[0]}, {ctime[0]}, {&yvel_old[lev]}, {ftime[0]}, 0, 1);
+            //FillPatch(lev, Time, tmp_vel_old, {cvel[0]}, {ctime[0]}, {fvel[0]}, {ftime[0]}, 0, 1);
+            //std::swap(tmp_vel_old[0][0], tmp_xvel_old);
+            //std::swap(tmp_vel_old[0][1], tmp_yvel_old);
+
+            //! no need of time interpolation of following
+            FillPatch(lev, Time, tmp_Pressure, cP, {ctime[0]}, {&Pressure[lev]}, {ftime[0]}, 0, 1);
+        }
+        else
+        {
+            std::swap(xvel_old[lev], tmp_xvel_old);
+            std::swap(yvel_old[lev], tmp_yvel_old);
+            std::swap(Pressure[lev], tmp_Pressure);
+        }
+
+        //! need to fill physical bcs
+        XVelBoundaryConditions(lev, Time, tmp_xvel_old);
+        YVelBoundaryConditions(lev, Time, tmp_yvel_old);
+        PressureBoundaryConditions(lev, Time, tmp_Pressure);
+    }
+    
+    const amrex::Real *dx = geom[lev].CellSize();
+    const amrex::Real *prob_lo = geom[lev].ProbLo();
+
+    amrex::iMultiFab *UMask;
+    amrex::iMultiFab *VMask;
+
+    amrex::iMultiFab UMask_NI;//NI stands for No Interface, need a better way of doing this
+    amrex::iMultiFab VMask_NI;//NI stands for No Interface, need a better way of doing this
+
+    if(N_IF > 0)
+    {
+        auto &&mask__= mask_[lev];
+        UMask = &mask__->getUMask();
+        VMask = &mask__->getVMask();
+    }
+    else
+    {
+        UMask_NI.define(xba, dmap[lev], 1, Nghost);
+        VMask_NI.define(yba, dmap[lev], 1, Nghost);
+  
+        UMask_NI.setVal(1);
+        VMask_NI.setVal(1);
+    }
+
+
+    /// compute x-component
+    for(amrex::MFIter mfi(xvel[lev]); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+
+        amrex::Array4<amrex::Real const> const &u = tmp_xvel_old.const_array(mfi);
+        amrex::Array4<amrex::Real const> const &v = tmp_yvel_old.const_array(mfi);
+        amrex::Array4<amrex::Real const> const &P = tmp_Pressure.const_array(mfi);
+        amrex::Array4<amrex::Real> const &ustar = xvel[lev].array(mfi);
+        amrex::Box box = get_valid_face_box(lev, bx, 0);
+
+        amrex::Array4<int> umask;
+
+        if(N_IF == 0)
+            umask = UMask_NI.array(mfi);
+        else
+            umask = UMask->array(mfi);
+
+        amrex::ParallelFor(box,
+        [&] AMREX_GPU_DEVICE(int i, int j, int k) noexcept 
+        {
+            if(umask(i, j, k) == 1)
+            {
+                amrex::Real ue = 0.5 * (u(i, j, k) + u(i + 1, j, k));
+                amrex::Real ux_e = (u(i + 1, j, k) - u(i, j, k)) / dx[0];
+                amrex::Real fe = ue * ue - 2.0 * Mu * ux_e;
+                
+                amrex::Real uw = 0.5 * (u(i, j, k) + u(i - 1, j, k));
+                amrex::Real ux_w = (u(i, j, k) - u(i - 1, j, k)) / dx[0];
+                amrex::Real fw = uw * uw - 2.0 * Mu * ux_w;
+                
+                amrex::Real un = 0.5 * (u(i, j, k) + u(i, j + 1, k));
+                amrex::Real vn = 0.5 * (v(i - 1, j + 1, k) + v(i, j + 1, k));
+                amrex::Real uy_n = (u(i, j + 1, k) - u(i, j, k)) / dx[1];
+                amrex::Real vx_n = (v(i, j + 1, k) - v(i - 1, j + 1, k)) / dx[0];
+                amrex::Real fn = un * vn - Mu * (uy_n + vx_n);
+                
+                amrex::Real us = 0.5 * (u(i, j, k) + u(i, j - 1, k));
+                amrex::Real vs = 0.5 * (v(i - 1, j, k) + v(i, j, k));
+                amrex::Real uy_s = (u(i, j, k) - u(i, j - 1, k)) / dx[1];
+                amrex::Real vx_s = (v(i, j, k) - v(i - 1, j, k)) / dx[0];
+                amrex::Real fs = us * vs - Mu * (uy_s + vx_s);
+                
+                if (isAxisymmetric)
+                {
+                    //TODO how to avoid singularity? i.e. what if y = 0
+                    //! box is centered in y
+                    amrex::Real yn = prob_lo[1] + dx[1] * (j + 1);
+                    amrex::Real y  = prob_lo[1] + dx[1] * (j + 0.5);
+                    amrex::Real ys = prob_lo[1] + dx[1] * j;
+                
+                    fn *= yn;
+                    fs *= ys;
+                    ustar(i, j, k) += dt * ( (fw - fe) / dx[0] + (fs - fn) / (y * dx[1]) );                    
+                }
+                else
+                {
+                    ustar(i, j, k) += dt * ( (fw - fe) / dx[0] + (fs - fn) / dx[1] );
+                }
+                
+                if (Projection)
+                {
+                    amrex::Real dpdx = (P(i, j, k) - P(i - 1, j, k)) / dx[0];
+                    ustar(i, j, k) -= dt * dpdx;
+                }
+            }
+        });
+    }
+
+    /// compute y-component
+    for(amrex::MFIter mfi(yvel[lev]); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        amrex::Array4<amrex::Real const> const &u = tmp_xvel_old.const_array(mfi);
+        amrex::Array4<amrex::Real const> const &v = tmp_yvel_old.const_array(mfi);
+        amrex::Array4<amrex::Real const> const &P = tmp_Pressure.const_array(mfi);
+        amrex::Array4<amrex::Real> const &vstar = yvel[lev].array(mfi);
+        amrex::Box box = get_valid_face_box(lev, bx, 1);
+
+        amrex::Array4<int> vmask;
+        if(N_IF == 0)
+            vmask = VMask_NI.array(mfi);
+        else
+            vmask = VMask->array(mfi);
+
+
+        amrex::ParallelFor(box,
+        [&] AMREX_GPU_DEVICE(int i, int j, int k) noexcept 
+        {
+            if(vmask(i ,j ,k) == 1)
+            {
+                amrex::Real ue = 0.5 * (u(i + 1, j, k) + u(i + 1, j - 1, k));
+                amrex::Real ve = 0.5 * (v(i, j, k) + v(i + 1, j, k));
+                amrex::Real uy_e = (u(i + 1, j, k) - u(i + 1, j - 1, k)) / dx[1];
+                amrex::Real vx_e = (v(i + 1, j, k) - v(i, j, k)) / dx[0];
+                amrex::Real fe = ue * ve - Mu * (uy_e + vx_e);
+                
+                amrex::Real uw = 0.5 * (u(i, j, k) + u(i, j - 1, k));
+                amrex::Real vw = 0.5 * (v(i, j, k) + v(i - 1, j, k));
+                amrex::Real uy_w = (u(i, j, k) - u(i, j - 1, k)) / dx[1];
+                amrex::Real vx_w = (v(i, j, k) - v(i - 1, j, k)) / dx[0];
+                amrex::Real fw = uw * vw - Mu * (uy_w + vx_w);
+                
+                amrex::Real vn = 0.5 * (v(i, j, k) + v(i, j + 1, k));
+                amrex::Real vy_n = (v(i, j + 1, k) - v(i, j, k)) / dx[1];
+                amrex::Real fn = vn * vn - 2.0 * Mu * vy_n;
+                
+                amrex::Real vs = 0.5 * (v(i, j, k) + v(i, j - 1, k));
+                amrex::Real vy_s = (v(i, j, k) - v(i, j - 1, k)) / dx[1];
+                amrex::Real fs = vs * vs - 2.0 * Mu * vy_s;
+                
+                if (isAxisymmetric)
+                {
+                    //! box is nodal in y
+                    amrex::Real yn = prob_lo[1] + dx[1] * (j + 0.5);
+                    amrex::Real y = prob_lo[1] + dx[1] * j;
+                    amrex::Real ys = prob_lo[1] + dx[1] * (j - 0.5);
+                
+                    fn *= yn;
+                    fs *= ys;
+                
+                    //! avoid singularity
+                    if (fabs(y) <  1e-10)
+                    {
+                        vstar(i, j, k) = 0.0;
+                    }
+                    else
+                    {
+                        vstar(i, j, k) += dt * ((fw - fe) / dx[0] + (fs - fn) / (y * dx[1]) - 2.0 * Mu * v(i, j, k) / (y * y));
+                    }
+                }
+                else
+                {
+                    vstar(i, j, k) += dt * ((fw - fe) / dx[0] + (fs - fn) / dx[1]);
+                }
+                
+                if (Projection)
+                {
+                    amrex::Real dpdy = (P(i, j, k) - P(i, j - 1, k)) / dx[1];
+                    vstar(i, j, k) -= dt * dpdy;
+                }
+            }
+        });
+    }
+}
+
+void incFSI::ComputeCollocatedVelocityField(int lev)
+{
+    U[lev].setVal(0.0);
+    const amrex::Box &domain = geom[lev].Domain();
+    amrex::BoxArray xba = amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(0));
+    amrex::BoxArray yba = amrex::convert(grids[lev], amrex::IntVect::TheDimensionVector(1));
+    amrex::iMultiFab *UMask;
+    amrex::iMultiFab *VMask;
+    amrex::iMultiFab *PMask;
+
+    amrex::iMultiFab UMask_NI;//NI stands for No Interface, need a better way of doing this
+    amrex::iMultiFab VMask_NI;//NI stands for No Interface, need a better way of doing this
+    amrex::iMultiFab PMask_NI;//NI stands for No Interface, need a better way of doing this
+
+    if(N_IF > 0)
+    {
+        auto &&mask__= mask_[lev];
+        UMask = &mask__->getUMask();
+        VMask = &mask__->getVMask();
+        PMask = &mask__->getPMask();
+    }
+    else
+    {
+        UMask_NI.define(xba, dmap[lev], 1, Nghost);
+        VMask_NI.define(yba, dmap[lev], 1, Nghost);
+        PMask_NI.define(grids[lev], dmap[lev], 1, Nghost);
+
+        UMask_NI.setVal(1);
+        VMask_NI.setVal(1);
+        PMask_NI.setVal(1);
+    }
+
+
+    for(amrex::MFIter mfi(U[lev]); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        amrex::Array4<amrex::Real const> const &u = xvel[lev].const_array(mfi);
+        amrex::Array4<amrex::Real const> const &v = yvel[lev].const_array(mfi);
+        amrex::Array4<amrex::Real> const &vel = U[lev].array(mfi);
+
+        amrex::Array4<int const> umask,vmask,pmask;
+        if(N_IF == 0)
+        {
+            umask = UMask_NI.const_array(mfi);
+            vmask = VMask_NI.const_array(mfi);
+            pmask = PMask_NI.const_array(mfi);
+        }
+        else        
+        {
+            umask = UMask->array(mfi);
+            vmask = VMask->array(mfi);
+            pmask = PMask->array(mfi);
+        }
+
+        amrex::ParallelFor(bx,
+        [&] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+        {
+            if (pmask(i,j,k) == 1)
+            {
+                /// x component
+                if (umask(i,j,k) == 1 && umask(i+1,j,k) == 1)
+                {
+                    vel(i, j, k, 0) = 0.5 * (u(i, j, k) + u(i + 1, j, k));
+                }
+                else if (umask(i,j,k) == 1 && umask(i+1,j,k) == 0)
+                {
+                    if (umask(i-1,j,k) == 1 && i > domain.smallEnd(0))
+                    {
+                        vel(i, j, k, 0) = 1.5 * (u(i, j, k) - 0.5 * u(i - 1, j, k));
+                    }
+                }
+                else if (umask(i,j,k) == 0 && umask(i+1,j,k) == 1)
+                {
+                    if (umask(i+2,j,k) == 1 && i < domain.bigEnd(0))
+                    {
+                        vel(i, j, k, 0) = 1.5 * (u(i + 1, j, k) - 0.5 * u(i + 2, j, k));
+                    }
+                }
+                else
+                {
+                    amrex::Abort("Problem computing collocated x component of velocity");
+                }
+        
+                /// y compoonent
+                if (vmask(i,j,k) == 1 && vmask(i,j+1,k) == 1)
+                {
+                    vel(i, j, k, 1) = 0.5 * (v(i, j, k) + v(i, j + 1, k));
+                }
+                else if (vmask(i,j,k) == 1 && vmask(i,j+1,k) == 0)
+                {
+                    if (vmask(i,j-1,k) == 1 && j > domain.smallEnd(1))
+                    {
+                        vel(i, j, k, 1) = 1.5 * (v(i, j, k) - 0.5 * v(i, j - 1, k));
+                    }
+                }
+                else if (vmask(i,j,k) == 0 && vmask(i,j+1,k) == 1)
+                {
+                    if (vmask(i,j+2,k) == 1 && j < domain.bigEnd(1))
+                    {
+                        vel(i, j, k, 1) = 1.5 * (v(i, j + 1, k) - 0.5 * v(i, j + 2, k));
+                    }
+                }
+                else
+                {
+                    amrex::Abort("Problem computing collocated y component of velocity");
+                }
+            }
+        });
+            
+    }
+    //if(lev == 0)
+    U[lev].FillBoundary();
+}
+
+void incFSI::ComputeStaggeredVelocityField(int lev)
+{
+    for(amrex::MFIter mfi(U[lev]); mfi.isValid(); ++mfi)
+    {
+        const amrex::Box& bx = mfi.validbox();
+        amrex::Array4<amrex::Real const> const &vel = U[lev].const_array(mfi);
+        amrex::Array4<amrex::Real> const &u = xvel[lev].array(mfi);
+        amrex::Array4<amrex::Real> const &v = yvel[lev].array(mfi);
+        amrex::Array4<int const> const &umask = mask_[lev]->getUMask().const_array(mfi);
+        amrex::Array4<int const> const &vmask = mask_[lev]->getVMask().const_array(mfi);        
+
+        /// grown cc box by 1 cell at hi side
+        amrex::Box gbx(bx);
+        gbx.growHi(0, 1);
+        gbx.growHi(1, 1);
+
+        amrex::ParallelFor(gbx,
+        [&] AMREX_GPU_DEVICE(int i, int j, int k) noexcept
+        {
+            if (umask(i,j,k) != 1)
+                u(i, j, k) = 0.5 * (vel(i, j, k, 0) + vel(i - 1, j, k, 0));
+            if (vmask(i,j,k) != 1)
+                v(i, j, k) = 0.5 * (vel(i, j, k, 1) + vel(i, j - 1, k, 1));        
+        });
+    }
+}
+
+} // namespace mycode
