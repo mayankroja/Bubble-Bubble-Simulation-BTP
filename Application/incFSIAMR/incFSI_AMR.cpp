@@ -20,7 +20,7 @@ void incFSI::Regrid()
             if(N_IF > 0)
             {
                 ComputeBubbleVolume(false);
-
+                DetectBubbles(true); 
                 for (int lev = 0; lev <= finest_level; lev++)
                 {
                     //FillGhost(lev); 

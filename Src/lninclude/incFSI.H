@@ -201,6 +201,8 @@ namespace mycode
     
         void ComputeBubbleVolume(bool init);
 
+        void DetectBubbles(bool init);
+
 	    void CheckConservationPhaseField();
 
         int getReinitPt(){return chk_int_read;}

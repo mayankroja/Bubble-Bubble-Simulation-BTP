@@ -2,6 +2,7 @@
 #include <AMReX_ParmParse.H>
 #include <algoim_hocp.hpp>
 #include <SolveCubicEqn.h>
+#include <queue>
 
 namespace mycode
 {
@@ -2835,7 +2836,98 @@ void Interface::Compute_Normal_Curvature()
     amrex::ParallelDescriptor::ReduceRealMax(max_kappa_interface);
     //amrex::Print()<<"max_kappa_interface = "<<max_kappa_interface<<'\n';
 }
+void Interface::DetectBubbles(bool init) {
+    // Create MultiFab for marking distinct bubbles with integer labels
+    amrex::MultiFab bubbleMask(psi.boxArray(), psi.DistributionMap(), 1, psi.nGrow());
+    amrex::MultiFab bubbleLabels(psi.boxArray(), psi.DistributionMap(), 1, psi.nGrow());
 
+    bubbleMask.setVal(0);  // Initialize all mask values to 0
+    bubbleLabels.setVal(0);  // Initialize all labels to 0
+
+    const amrex::Real* dx = mesh_.geometry().CellSize();  // Grid spacing
+    const amrex::Real* prob_lo = mesh_.geometry().ProbLo();  // Lower corner of the domain
+
+    // Step 1: Mark the bubble regions (psi > 0)
+    for (amrex::MFIter mfi(psi); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.validbox();
+        auto const& psi_arr = psi.const_array(mfi);
+        auto const& bubbleMask_arr = bubbleMask.array(mfi);
+
+        amrex::ParallelFor(bx, [=] AMREX_GPU_DEVICE(int i, int j, int k) noexcept {
+            if (psi_arr(i, j, k) > 0) {
+                bubbleMask_arr(i, j, k) = 1;  // Mark as inside a bubble
+            } else {
+                bubbleMask_arr(i, j, k) = 0;  // Outside or boundary
+            }
+        });
+    }
+
+    int currentLabel = 1;  // Start labeling from 1
+
+    // Step 2: Label connected bubble regions using AMReX coordinates and flood fill logic
+    for (amrex::MFIter mfi(psi); mfi.isValid(); ++mfi) {
+        const amrex::Box& bx = mfi.validbox();
+        auto const& bubbleMask_arr = bubbleMask.const_array(mfi);
+        auto const& bubbleLabels_arr = bubbleLabels.array(mfi);
+
+        // Use AMReX IntVect to represent global coordinates
+        for (amrex::IntVect iv = bx.smallEnd(); iv <= bx.bigEnd(); bx.next(iv)) {
+            if (bubbleMask_arr(iv) == 1 && bubbleLabels_arr(iv) == 0) {
+                std::queue<amrex::IntVect> q;
+                q.push(iv);
+                bubbleLabels_arr(iv) = currentLabel;
+
+                while (!q.empty()) {
+                    amrex::IntVect current = q.front();
+                    q.pop();
+
+                    auto tryPush = [&](const amrex::IntVect& neighbor) {
+                        if (bx.contains(neighbor) && bubbleMask_arr(neighbor) == 1 && bubbleLabels_arr(neighbor) == 0) {
+                            bubbleLabels_arr(neighbor) = currentLabel;
+                            q.push(neighbor);
+                        }
+                    };
+
+                    // Check neighbors and apply flood fill using AMReX IntVects for global indexing
+                    tryPush(current + amrex::IntVect(AMREX_D_DECL(1, 0, 0)));  // +x
+                    tryPush(current - amrex::IntVect(AMREX_D_DECL(1, 0, 0)));  // -x
+                    tryPush(current + amrex::IntVect(AMREX_D_DECL(0, 1, 0)));  // +y
+                    tryPush(current - amrex::IntVect(AMREX_D_DECL(0, 1, 0)));  // -y
+                    #if (AMREX_SPACEDIM == 3)
+                    tryPush(current + amrex::IntVect(AMREX_D_DECL(0, 0, 1)));  // +z (3D only)
+                    tryPush(current - amrex::IntVect(AMREX_D_DECL(0, 0, 1)));  // -z (3D only)
+                    #endif
+                }
+
+                amrex::Print() << "Assigned label " << currentLabel << " to bubble at global index " << iv << "\n";
+
+                // Increment the label for the next bubble
+                currentLabel++;
+            }
+        }
+    }
+
+    // Step 3: Collect and count distinct labels
+    std::set<int> uniqueLabels;
+    for (amrex::MFIter mfi(psi); mfi.isValid(); ++mfi) {
+        auto const& bubbleLabels_arr = bubbleLabels.const_array(mfi);
+        const amrex::Box& bx = mfi.validbox();
+
+        for (amrex::IntVect iv = bx.smallEnd(); iv <= bx.bigEnd(); bx.next(iv)) {
+            if (bubbleLabels_arr(iv) > 0) {
+                uniqueLabels.insert(bubbleLabels_arr(iv));  // Insert unique label
+            }
+        }
+    }
+
+    // Debugging: Print collected labels
+    amrex::Print() << "Collected labels: ";
+    for (const auto& label : uniqueLabels) {
+        amrex::Print() << label << " ";
+    }
+    amrex::Print() << "\n";
+    amrex::Print() << "No. of Bubbles: " << uniqueLabels.size() << '\n';
+}
 
 } /*End namespace mycode */
 

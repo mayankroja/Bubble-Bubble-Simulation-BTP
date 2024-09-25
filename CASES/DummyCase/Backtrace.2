@@ -1,0 +1,69 @@
+Host Name: BhooterRaja
+=== If no file names and line numbers are shown below, one can run
+            addr2line -Cpfie my_exefile my_line_address
+    to convert `my_line_address` (e.g., 0x4a6b) into file name and line number.
+    Or one can use amrex/Tools/Backtrace/parse_bt.py.
+
+=== Please note that the line number reported by addr2line may not be accurate.
+    One can use
+            readelf -wl my_exefile | grep my_line_address'
+    to find out the offset for that line.
+
+ 0: ./run.exe(+0x25b420) [0x555813f2f420]
+    amrex::BLBackTrace::print_backtrace_info(_IO_FILE*) at /usr/include/x86_64-linux-gnu/bits/unistd.h:354
+ (inlined by) amrex::BLBackTrace::print_backtrace_info(_IO_FILE*) at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/Src/Base/AMReX_BLBackTrace.cpp:200
+
+ 1: ./run.exe(+0x25dde8) [0x555813f31de8]
+    amrex::BLBackTrace::handler(int) at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/Src/Base/AMReX_BLBackTrace.cpp:100
+
+ 2: /lib/x86_64-linux-gnu/libc.so.6(+0x43090) [0x7f8f6dfce090]
+
+ 3: /lib/x86_64-linux-gnu/libc.so.6(gsignal+0xcb) [0x7f8f6dfce00b]
+
+ 4: /lib/x86_64-linux-gnu/libc.so.6(abort+0x12b) [0x7f8f6dfad859]
+
+ 5: /lib/x86_64-linux-gnu/libc.so.6(+0x8d26e) [0x7f8f6e01826e]
+
+ 6: /lib/x86_64-linux-gnu/libc.so.6(+0x952fc) [0x7f8f6e0202fc]
+
+ 7: /lib/x86_64-linux-gnu/libc.so.6(+0x96b3c) [0x7f8f6e021b3c]
+
+ 8: ./run.exe(+0xb18bc) [0x555813d858bc]
+    amrex::BaseFab<double>::clear() at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_BaseFab.H:2155
+ (inlined by) amrex::BaseFab<double>::~BaseFab() at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_BaseFab.H:2015
+ (inlined by) amrex::FArrayBox::~FArrayBox() at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_FArrayBox.H:266
+ (inlined by) amrex::FArrayBox::~FArrayBox() at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_FArrayBox.H:266
+ (inlined by) amrex::DefaultFabFactory<amrex::FArrayBox>::destroy(amrex::FArrayBox*) const at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_FabFactory.H:85
+ (inlined by) amrex::FabArray<amrex::FArrayBox>::clear() at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_FabArray.H:1744
+
+ 9: ./run.exe(+0xe7387) [0x555813dbb387]
+    std::unique_ptr<amrex::FabArray<amrex::FArrayBox>, std::default_delete<amrex::FabArray<amrex::FArrayBox> > >::~unique_ptr() at /usr/include/c++/9/bits/unique_ptr.h:291
+ (inlined by) amrex::FabArray<amrex::FArrayBox>::~FabArray() at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_FabArray.H:1936
+
+10: ./run.exe(+0x150651) [0x555813e24651]
+    std::array<amrex::MultiFab, 2ul>::~array() at /usr/include/c++/9/array:94
+ (inlined by) FillPatchTwoLevels_doit<amrex::MultiFab, amrex::PhysBCFunct<amrex::GpuBndryFuncFab<mycode::MyExtBCFill> >, amrex::Interpolater, amrex::NullInterpHook<amrex::FArrayBox>, amrex::NullInterpHook<amrex::FArrayBox> > at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_FillPatchUtil_I.H:630
+
+11: ./run.exe(+0x15306d) [0x555813e2706d]
+    std::enable_if<amrex::IsFabArray<amrex::MultiFab, void>::value, void>::type amrex::FillPatchTwoLevels<amrex::MultiFab, amrex::PhysBCFunct<amrex::GpuBndryFuncFab<mycode::MyExtBCFill> >, amrex::Interpolater, amrex::NullInterpHook<amrex::FArrayBox>, amrex::NullInterpHook<amrex::FArrayBox> >(std::array<amrex::MultiFab*, 2ul> const&, double, amrex::Vector<std::array<amrex::MultiFab*, 2ul>, std::allocator<std::array<amrex::MultiFab*, 2ul> > > const&, amrex::Vector<double, std::allocator<double> > const&, amrex::Vector<std::array<amrex::MultiFab*, 2ul>, std::allocator<std::array<amrex::MultiFab*, 2ul> > > const&, amrex::Vector<double, std::allocator<double> > const&, int, int, int, amrex::Geometry const&, amrex::Geometry const&, std::array<amrex::PhysBCFunct<amrex::GpuBndryFuncFab<mycode::MyExtBCFill> >, 2ul>&, int, std::array<amrex::PhysBCFunct<amrex::GpuBndryFuncFab<mycode::MyExtBCFill> >, 2ul>&, int, amrex::IntVect const&, amrex::Interpolater*, std::array<amrex::Vector<amrex::BCRec, std::allocator<amrex::BCRec> >, 2ul> const&, int, amrex::NullInterpHook<amrex::FArrayBox> const&, amrex::NullInterpHook<amrex::FArrayBox> const&) at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_FillPatchUtil_I.H:880
+ (inlined by) mycode::incFSI::FillPatch(int, double, std::array<amrex::MultiFab*, 2ul> const&, amrex::Vector<std::array<amrex::MultiFab*, 2ul>, std::allocator<std::array<amrex::MultiFab*, 2ul> > > const&, amrex::Vector<double, std::allocator<double> > const&, amrex::Vector<std::array<amrex::MultiFab*, 2ul>, std::allocator<std::array<amrex::MultiFab*, 2ul> > > const&, amrex::Vector<double, std::allocator<double> > const&, int, int) at /home/pratik/Desktop/BWL_project/implementation-in-amrex/AMRCoreNS/Exec/BUBBLE_NEAR_WALL_HALF/../../Application/incFSIAMR/incFSI_AMR.cpp:1288
+
+12: ./run.exe(+0x122db1) [0x555813df6db1]
+    std::vector<double, std::allocator<double> >::~vector() at /usr/include/c++/9/bits/stl_vector.h:677
+ (inlined by) amrex::Vector<double, std::allocator<double> >::~Vector() at /home/pratik/NumericalLibraries/amrex-latest/amrex-development/tmp_install_dir/include/AMReX_Vector.H:24
+ (inlined by) mycode::incFSI::ComputeIntermediateVelocity_RK2(int) at /home/pratik/Desktop/BWL_project/implementation-in-amrex/AMRCoreNS/Exec/BUBBLE_NEAR_WALL_HALF/../../Application/incFSIAMR/incFSI_PredictVel_RK2.cpp:75
+
+13: ./run.exe(+0x106385) [0x555813dda385]
+    mycode::incFSI::Scheme_RK2() at /home/pratik/Desktop/BWL_project/implementation-in-amrex/AMRCoreNS/Exec/BUBBLE_NEAR_WALL_HALF/../../Application/incFSIAMR/incFSI_RK2.cpp:187
+
+14: ./run.exe(+0xfad98) [0x555813dced98]
+    mycode::incFSI::Evolve() at /home/pratik/Desktop/BWL_project/implementation-in-amrex/AMRCoreNS/Exec/BUBBLE_NEAR_WALL_HALF/../../Application/incFSIAMR/incFSI.cpp:304
+
+15: ./run.exe(+0x27c56) [0x555813cfbc56]
+    main at /home/pratik/Desktop/BWL_project/implementation-in-amrex/AMRCoreNS/Exec/BUBBLE_NEAR_WALL_HALF/main.cpp:324
+
+16: /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xf3) [0x7f8f6dfaf083]
+
+17: ./run.exe(+0x2a68e) [0x555813cfe68e]
+    ?? ??:0
+

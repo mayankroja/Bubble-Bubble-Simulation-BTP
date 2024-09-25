@@ -1,0 +1,21 @@
+=== Please note that the line number reported by addr2line may not be accurate.
+    If necessary, one can use 'readelf -wl my_exefile | grep my_line_address'
+    to find out the offset for that line.
+ 0: /home/pratik/NumericalLibraries/visit3_2_0.linux-x86_64/3.2.0/linux-x86_64/plugins/databases/libEBoxlib2DDatabase_ser.so(_ZN11BLBackTrace20print_backtrace_infoEP8_IO_FILE+0x42) [0x7f60095b3542]
+
+ 1: /home/pratik/NumericalLibraries/visit3_2_0.linux-x86_64/3.2.0/linux-x86_64/plugins/databases/libEBoxlib2DDatabase_ser.so(_ZN11BLBackTrace7handlerEi+0x371) [0x7f60095b3f61]
+
+ 2: /lib/x86_64-linux-gnu/libc.so.6(+0x43090) [0x7f6014c76090]
+
+ 3: /lib/x86_64-linux-gnu/libc.so.6(__select+0x6b) [0x7f6014d481eb]
+
+ 4: /home/pratik/NumericalLibraries/visit3_2_0.linux-x86_64/3.2.0/linux-x86_64/lib/libvisitcommon.so(_ZNK16SocketConnection9NeedsReadEb+0x93) [0x7f60151f2303]
+
+ 5: /home/pratik/NumericalLibraries/visit3_2_0.linux-x86_64/3.2.0/linux-x86_64/lib/libengine_ser.so(_ZN6Engine9EventLoopEv+0x20f) [0x7f601574620f]
+
+ 6: /home/pratik/NumericalLibraries/visit3_2_0.linux-x86_64/3.2.0/linux-x86_64/bin/engine_ser(+0x1579ed) [0x5600bceb79ed]
+
+ 7: /lib/x86_64-linux-gnu/libc.so.6(__libc_start_main+0xf3) [0x7f6014c57083]
+
+ 8: /home/pratik/NumericalLibraries/visit3_2_0.linux-x86_64/3.2.0/linux-x86_64/bin/engine_ser(+0x1577de) [0x5600bceb77de]
+

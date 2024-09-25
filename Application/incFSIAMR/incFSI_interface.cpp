@@ -406,4 +406,17 @@ namespace mycode
         return 0.0;
     }
 
+    void incFSI::DetectBubbles(bool init)
+    {
+        for (int i = 0; i < N_IF; i++)
+        {
+            for(int ilev = 0; ilev <= finest_level; ilev++)
+            {
+                auto &&solid = interfaces[ilev][i];
+                solid->DetectBubbles(true);
+                amrex::Print()<<"Inside incFSI_interface : DetectBubbles()"<<"\n";
+            }
+        }
+    }
+
 } // namespace mycode

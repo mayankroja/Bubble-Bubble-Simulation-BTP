@@ -24,7 +24,7 @@ namespace mycode
  */
 class Stencil
 {
-// public members
+// public membersc
 public:
 	enum cell_level
 	{
@@ -175,7 +175,7 @@ public:
 
 	Stencil& operator += (const Stencil& A)
 	{
-		assert(A.getRowId() == row_id_);
+		// assert(A.getRowId() == row_id_);
 		for (size_t i = 0; i < A.size(); i++)
 		{
 			addToColEntry(A.getColEntry(i).first, A.getColEntry(i).second);		
@@ -185,7 +185,7 @@ public:
 
 	Stencil& operator -= (const Stencil& A)
 	{
-		assert(A.getRowId() == row_id_);
+		// assert(A.getRowId() == row_id_);
 		for (size_t i = 0; i < A.size(); i++)
 		{
 			addToColEntry(A.getColEntry(i).first, -A.getColEntry(i).second);

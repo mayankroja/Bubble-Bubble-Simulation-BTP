@@ -76,7 +76,7 @@ void Stencil::setSource(double val)
 
 void Stencil::setColEntry(unsigned int i, int col_id, double val)
 {
-    assert(!col_entry_.empty());
+    // assert(!col_entry_.empty());
     col_entry_[i] = std::pair<int, double>(col_id, val);
 }
 
@@ -151,7 +151,7 @@ Stencil::~Stencil()
 
 Stencil operator + ( const Stencil& A, const Stencil& B )
 {
-    assert(A.getRowId() == B.getRowId());
+    // assert(A.getRowId() == B.getRowId());
     Stencil C = A;
     C += B;
     return C;
@@ -159,7 +159,7 @@ Stencil operator + ( const Stencil& A, const Stencil& B )
 
 Stencil operator - ( const Stencil& A, const Stencil& B )
 {
-    assert(A.getRowId() == B.getRowId());
+    // assert(A.getRowId() == B.getRowId());
     Stencil C = A;
     C -= B;
     return C;

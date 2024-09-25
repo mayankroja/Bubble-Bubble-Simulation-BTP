@@ -126,6 +126,7 @@ public:
 	int &TTube() { return TTube_; }
 	int &NTube() { return NTube_; }
 
+	void DetectBubbles(bool init = false); 
 	void ComputeVolume(bool intit = false);
 	void ComputeVolume(bool intit , const amrex::iMultiFab &cfmask_);
 	void SetVolume(amrex::Real Vol){ Volume_ = Vol;}
