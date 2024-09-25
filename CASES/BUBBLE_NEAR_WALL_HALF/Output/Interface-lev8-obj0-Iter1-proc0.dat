@@ -1,0 +1,2 @@
+VARIABLES = X, Y,Xc,Yc,type,frac,weights, i_intercepts_i,P_int,u_int,v_int, ep_max, dmg, phi, reg_stat, kappa
+0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	0.00000e+00	

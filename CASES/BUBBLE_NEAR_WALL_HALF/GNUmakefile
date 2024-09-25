@@ -1,5 +1,5 @@
-AMREX_HOME      = /home/pratik/Desktop/NumLib/amrex/tmp_install_dir
-HYPRE_DIR      = /home/pratik/Desktop/NumLib/hypre/src/hypre
+AMREX_HOME      = /Users/mayankroja/BTP/Amrex/tmp_install_dir
+HYPRE_DIR      = /Users/mayankroja/BTP/hypre/src/hypre
 ALGOIM        = ../../algoim/src
 
 SRC = ../../Src
@@ -9,7 +9,7 @@ APP = ../../Application/incFSIAMR
                 -I$(ALGOIM) -I$(PETSC_DIR)/include -I$(APP) -I$(PETSC_DIR)/include -I$(PETSC_DIR)/gnu-opt/include -I$(MPI_DIR)/include
 # -I$(MPI_DIR)/include
 INC_PATH      = -I$(AMREX_HOME)/include -I$(HYPRE_DIR)/include -I$(SRC) -I$(SRC)/lninclude \
-                -I$(ALGOIM) -I$(APP) -I$(MPI_DIR)/include
+                -I$(ALGOIM) -I$(APP)
 
 LIB_PATH      = -L$(AMREX_HOME)/lib -L$(HYPRE_DIR)/lib 
 
@@ -18,9 +18,12 @@ COMPILE_LIB_FLAGS ?= $(shell awk '/Libs:/ {$$1=$$2=""; print $$0}' $(AMREX_HOME)
 
 CFLAGS := $(INC_PATH) $(COMPILE_CPP_FLAGS)
 LFLAGS := $(COMPILE_LIB_FLAGS)
+-DCMAKE_C_COMPILER=$(which gcc-14) -DCMAKE_CXX_COMPILER=$(which g++-14)
 
-CXX = mpicxx
-CXXFLAGS = -O2 -std=c++14 -g -Wall
+CC = mpicc 
+CXX = mpicxx  
+CXXFLAGS = -O2 -g -Wall #-std=c++14
+##to enable openmpi  -fopenmp
 
 #csrc = $(wildcard $(foreach dir, $(Pdirs), $(SRC)/$(dir)/*.cpp) )
 csrc += $(wildcard $(SRC)/**/*.cpp)
@@ -32,7 +35,7 @@ dep = $(obj:.o=.d)
 default: run.exe
 
 run.exe: $(obj)
-	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $^ $(LIB_PATH) $(LFLAGS) -lHYPRE -lblitz 
+	$(CXX) -o $@ $(CXXFLAGS) $(CFLAGS) $^ $(LIB_PATH) $(LFLAGS)  -lhypre
 #-lblitz
 #-lspdlog
 
@@ -55,13 +58,12 @@ realclean:
 
 all:default
 
-
 srun:
 	./run.exe inputs
 ##parrun:
 ##	/home/pratik/NumericalLibraries/petsc-3.7.7/gnu-opt/bin/mpirun -np 4 ./run.exe inputs
 parrun:
-	mpirun -np 10 ./run.exe inputs
+	mpirun -np 8 ./run.exe inputs
 valsrun:
 	valgrind --log-file="val.out" ./run.exe inputs
 cleandata:
